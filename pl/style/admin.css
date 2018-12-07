@@ -1,0 +1,198 @@
+#rdp-ebb-import-action {
+    text-align: right;
+    padding: 10px 10px 0;
+}
+
+#rdp-ebb-import-action *{float: right;}
+
+#cover-editor{width: 75%;border: solid 0px red;position: relative;display: flex;align-items: stretch;padding: 0 20px;background: #fff;flex-direction: column;}
+
+#cover-editor.loading{
+    content: "\0020";
+    opacity: 0.9;
+    background: #fff url('images/anim_loading_75x75.gif') center center/auto no-repeat;
+}
+
+.coverPreviewArea_wrap{display: flex;margin: 45px;}
+
+#cover-editor.loading .coverPreviewArea_wrap,
+#cover-editor.loading .image_chooser_wrap{display: none;}
+
+#image_chooser{margin: 0; padding: 0;}
+
+#image_chooser li.loading{
+    display: inline-block;
+    color: transparent; 
+    text-indent: -9999px;
+    height: 94px;
+    margin-top: 2px;
+    content: "\0020";
+    filter: progid: DXImageTransform.Microsoft.Alpha(Opacity=90);
+    opacity: 0.9;
+    width: 16px;
+    background-color: #fff;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-image: url("images/anim_loading_16x16.gif");     
+}
+
+#image_chooser.light{ background-color: #f2f2f2; }
+
+#image_chooser.light li {margin: 0 2px 2px 0; border: 2px solid #ddd;  min-width: 62px;display: inline-block;}
+
+#cover_image{
+    margin-left:20px;
+    margin-right:20px;
+    width:auto;
+    height:98px;
+    border-top:1px solid #aaa;
+    border-bottom:1px solid #aaa;
+    position:relative;
+    background-color:#fff;
+
+}
+
+.coverImage {
+    -webkit-box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
+    -moz-box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
+    box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
+}
+
+.coverPreviewArea,
+#color-theme{
+    display: inline-block;
+}
+
+.coverPreviewArea{
+    margin-right: 10px;
+    position: relative;
+}
+
+#color-theme {
+    width: 202px;
+    height: 318px;
+    position: relative;
+}
+
+.theme {
+    float: left;
+    margin: 0 10px 10px 0;
+    border: 2px solid #f2f2f2;
+}
+
+.theme_preview {
+    width: 29px;
+    height: 44px;
+    border: 1px solid #ddd;
+    background: rgb(255,255,255) url(images/cover_color_preview.png) no-repeat;
+    cursor: pointer;
+}
+
+.theme_nico_0 .theme_preview {
+    background-position: 0px 0px;
+}
+
+.theme_nico_2 .theme_preview {
+    background-position: -29px 0px;
+}
+
+.theme_nico_3 .theme_preview {
+    background-position: -58px 0px;
+}
+
+.theme_nico_4 .theme_preview {
+    background-position: -87px 0px;
+}
+
+.theme_nico_5 .theme_preview {
+    background-position: 0px -44px;
+}
+
+.theme_nico_6 .theme_preview {
+    background-position: -29px -44px;
+}
+
+.theme_nico_7 .theme_preview {
+    background-position: -58px -44px;
+}
+
+.theme_nico_8 .theme_preview {
+    background-position: -87px -44px;
+}
+
+.theme_nico_9 .theme_preview {
+    background-position: 0px -88px;
+}
+
+.theme_nico_10 .theme_preview {
+    background-position: -29px -88px;
+}
+
+.theme_nico_11 .theme_preview {
+    background-position: -58px -88px;
+}
+
+.theme_nico_12 .theme_preview {
+    background-position: -87px -88px;
+}
+
+.theme_nico_13 .theme_preview {
+    background-position: 0px -132px;
+}
+
+.theme_nico_15 .theme_preview {
+    background-position: -29px -132px;
+}
+
+.theme_nico_16 .theme_preview {
+    background-position: -58px -132px;
+}
+
+.theme_nico_17 .theme_preview {
+    background-position: -87px -132px;
+}
+
+.theme_nico_18 .theme_preview {
+    background-position: 0px -176px;
+}
+
+.theme_nico_19 .theme_preview {
+    background-position: -29px -176px;
+}
+
+.theme_nico_20 .theme_preview {
+    background-position: -58px -176px;
+}
+
+.theme_nico_21 .theme_preview {
+    background-position: -87px -176px;
+}
+
+#theme_chooser .theme.selected, 
+#image_chooser .selected {
+    border: 2px solid rgb(253,97,38);
+}
+
+.thumbelina-but.horiz {
+    width: 20px;
+    height: 98px;
+    line-height: 84px;
+    top:-1px;
+
+}
+
+#image_chooser.light li.image_preview.no-image{
+    line-height: 80px; 
+    text-align: center;
+    padding: 5px;
+}
+
+#image_chooser.light li.image_preview.no-image img{
+    content: url("images/no-image.png");
+    line-height: 80px;
+    width: auto;
+}
+
+#wb_generating_book_indicator{
+    content: url("images/anim_loading_16x16.gif");
+}
