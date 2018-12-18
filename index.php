@@ -4,7 +4,7 @@
 Plugin Name: RDP eBook Builder
 Plugin URI: http://robert-d-payne.com/
 Description: Build books from wiki pages. Requires RDP Wiki Embed plugin.
-Version: 0.1.0
+Version: 1.0.0
 Author: Robert D Payne
 Author URI: http://robert-d-payne.com/
 License: GPLv2 or later
@@ -19,12 +19,8 @@ if ( ! defined( 'WPINC' ) ) {
 
 
 if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
-    $dir = plugin_dir_path( __FILE__ );
-    define('RDP_EBB_PLUGIN_BASEDIR', $dir);
-    define('RDP_EBB_PLUGIN_BASEURL',plugins_url( null, __FILE__ ) );
-    define('RDP_EBB_PLUGIN_BASENAME', plugin_basename(__FILE__));
 
-    require_once 'bl/EBBUtilities.php';     
+    require_once 'bl/ebbUtilities.php';     
     
     class RDP_EBB_PLUGIN {
         public static $plugin_slug = 'rdp-ebook-builder'; 
@@ -47,11 +43,26 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
             $this->load_dependencies();   
      
             add_action( 'init', 'RDP_EBB_PLUGIN::initialize' );
-           
+            add_filter( 'template_include', 'RDP_EBB_PLUGIN::template_include', 99 );
+            add_action( 'after_setup_theme', array( $this, 'defineConstants' ), 1 );
             
             // run the plugin
             add_action('wp_loaded',array( $this, 'run'),1);             
         }//__construct
+        
+        function defineConstants() {
+            $dir = plugin_dir_path( __FILE__ );
+            define('RDP_EBB_PLUGIN_BASEDIR', $dir);
+            define('RDP_EBB_PLUGIN_BASEURL',plugins_url( null, __FILE__ ) );
+            define('RDP_EBB_PLUGIN_BASENAME', plugin_basename(__FILE__));
+            define('RDP_EBB_PLUGIN_PUBLIC_JS', plugins_url( 'pl/js', __FILE__ ));
+            define('RDP_EBB_PLUGIN_PUBLIC_CSS', plugins_url( 'pl/style', __FILE__ ));
+            define('RDP_EBB_PLUGIN_PUBLIC_IMAGES', plugins_url( 'pl/images', __FILE__ ));
+        }//defineConstants   
+        
+        static function errorMessagePreamble(){
+            return __('Book Import Error: ','rdp-ebook-builder');
+        }
         
         static function default_settings() {
             return array(
@@ -115,6 +126,10 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
         public static function coverSizes() {
            return array('small','medium','large');
         }//buttonSizes  
+        
+        public static function errorMessaqePreamble() {
+            return __('Book Import Error: ','rdp-ebook-builder');
+        }//errorMessaqePreamble
 
         private function load_dependencies() {
             if (is_admin()){
@@ -123,6 +138,7 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
             }
 
             require_once 'bl/simple_html_dom.php'; 
+            require_once 'bl/ebbContent.php';
             require_once 'bl/ebbImport.php';
             require_once 'bl/ebbBook.php';
             require_once 'bl/ebbChapter.php';
@@ -136,7 +152,20 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
             if(!has_filter('widget_text','do_shortcode'))add_filter('widget_text','do_shortcode',11);
 
             add_action( 'template_redirect', array(&$this,'handle_filters') );
-        }//define_front_hooks    
+        }//define_front_hooks   
+        
+        public static function template_include($template) {
+            $fIsOverride = isset( $_GET['ebb-key'] ); 
+            
+            if($fIsOverride):
+		$new_template = locate_template( array( 'ebook-iframe-container.php' ) );
+		if ( !empty( $new_template ) ) {
+			return $new_template;
+		}                
+            endif;
+            
+            return $template;
+        }//template_include
         
         function handle_filters() {
             global $wp_query;
@@ -146,13 +175,62 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
             }
 
             $fIsBook = is_singular( 'ebook' );
+            $fIsOverride = isset( $_GET['ebb-key'] );            
 
-            if(!$fIsBook ){
+            if(!$fIsBook && !$fIsOverride){
                 return;
             }
+            
+            if($fIsOverride):
+                
+//                wp_enqueue_script(
+//                        'ztree',
+//                        RDP_EBB_PLUGIN_PUBLIC_JS . '/jquery.ztree.core.min.js',
+//                        ['jquery',]
+//                    );                
+//
+//                wp_enqueue_script(
+//                        'ztree',
+//                        RDP_EBB_PLUGIN_PUBLIC_JS . '/elasticlunr.min.js',
+//                        ['jquery',]
+//                    );                
+//
+//                wp_enqueue_script(
+//                        'ebook-embedded',
+//                        RDP_EBB_PLUGIN_PUBLIC_JS . '/ebook-embedded.js',
+//                        ['jquery','jquery-ui','ztree']
+//                    );
+//
+//            
+//                wp_enqueue_style(
+//                        'ebook-embedded-jquery-ui', 
+//                        RDP_EBB_PLUGIN_PUBLIC_CSS . '/ebook-embedded-jquery-ui.css'
+//                    );  
+//                wp_enqueue_style(
+//                        'jquery-mobile', 
+//                        RDP_EBB_PLUGIN_PUBLIC_CSS . '/jquery-mobile.css',
+//                        ['ebook-embedded-jquery-ui']
+//                    );            
+//                wp_enqueue_style(
+//                        'mediawiki', 
+//                        RDP_EBB_PLUGIN_PUBLIC_CSS . '/mediawiki.css',
+//                        ['jquery-mobile']
+//                    );            
+//                
+//            
+//                wp_enqueue_style(
+//                        'ebook-embedded', 
+//                        RDP_EBB_PLUGIN_PUBLIC_CSS . '/ebook-embedded.css',
+//                        ['ebook-embedded-jquery-ui','jquery-mobile','mediawiki']
+//                    );                
+//                $this->_instanceBook = new RDP_EBB_BOOK(self::$version,$this->_options);
+//                add_filter('the_content', array(&$this->_instanceBook, 'embedBook')); 
+            else:
+                $this->_instanceBook = new RDP_EBB_BOOK(self::$version,$this->_options);
+                add_filter('the_content', array(&$this->_instanceBook, 'render'));             
+            endif;
 
-            $this->_instanceBook = new RDP_EBB_BOOK(self::$version,$this->_options);
-            add_filter('the_content', array(&$this->_instanceBook, 'render')); 
+
         }//handle_filters         
         
         
@@ -168,6 +246,9 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
         
         private function define_ajax_hooks(){
             if(!defined( 'DOING_AJAX' ) || !DOING_AJAX)return;
+            add_action('wp_ajax_rdp_ebb_generate_book','RDP_EBB_BOOK::generateHTMLFile');
+            
+            
         }//define_ajax_hooks
         
         public static function initialize() {
@@ -184,10 +265,23 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
         } //install          
 
         public function run() {
+            $this->handleWebserviceRequests();
             $this->define_front_hooks();
             $this->define_admin_hooks();
             $this->define_ajax_hooks();  
         } //run  
+        
+        private function handleWebserviceRequests() {
+            $cmd = RDP_EBB_Utilities::globalRequest('ebb_action');
+            switch ($cmd) {
+                case 'book_download':
+                    RDP_EBB_BOOK::downloadHandler();
+                    break;
+
+                default:
+                    break;
+            }
+        }//handleWebserviceRequests        
 
         private static function cpt_init(){
 

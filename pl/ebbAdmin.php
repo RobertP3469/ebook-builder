@@ -307,21 +307,13 @@ class RDP_EBB_ADMIN {
         if ( 'ebook' !== $typenow ) return;
         if(!$update)return;
         
-        $post->filter = '';
-        $meta = $post->_ebook_metadata;  
-        if(!$meta):
-            $meta = RDP_EBB_BOOK::bookMetadataStructure();
-        endif;
-        
         remove_action('save_post', 'RDP_EBB_ADMIN::save_book_meta', 1, 3); 
+        
         if(!RDP_EBB_Utilities::rgempty('btnRDPWBImport')):
             $sourceName = '';
             $source = strip_tags(RDP_EBB_Utilities::globalRequest('wb_source'));
-            if(empty($source)):
-                $source = RDP_EBB_Utilities::rgar($meta, 'link','');                
-            endif;
-
-            $sErrorMsgPreamble = __('Book Import Error: ','rdp-ebook-builder');
+            if(empty($source))return;
+            
             $dataPass = array(
                 'url' => '',
                 'code' => '200',
@@ -340,27 +332,26 @@ class RDP_EBB_ADMIN {
             switch ($sourceName) {
                 case 'lablynxpress':
                 case 'limswiki':
+                    $dataPass = RDP_EBB_IMPORT::handleMediawikiImport($source, $dataPass, $baseURL, $post_id);
 
-                    $dataPass = RDP_EBB_IMPORT::handleMediawikiImport($source, $dataPass, $sErrorMsgPreamble,$baseURL,$post_id);
+                    if($dataPass['code'] !== '200'):
+                        for($x = 0; $x < count($dataPass['messages']); $x++){
+                            $notice = array(
+                                'id' => 'ebook-import'.($x+1),
+                                'type' => 'error',
+                                'message' => $dataPass['messages'][$x]
+                            );
+                            add_persistent_notice( $notice );                             
+                        }
 
-                   if($dataPass['code'] !== '200'):
-                       add_persistent_notice( array(
-                           'id' => 'wiki-book-import',
-                           'type' => 'error',
-                           'message' => $dataPass['message']
-                       ) );                
-                   else:
-                       $meta = $post->_ebook_metadata;
-                       $meta['download_url'] = strip_tags(RDP_EBB_Utilities::globalRequest('wb_download_url')); 
-                       RDP_EBB_Utilities::handlePostMeta($post_id,$meta);
-
-                       $msgResult = __('Import complete.', 'rdp-ebook-builder');
-                       add_persistent_notice( array(
-                           'id' => 'ebook-import',
-                           'type' => 'success',
-                           'message' => $msgResult
-                       ) );                
-                   endif;                  
+                    else:
+                        $msgResult = __('Import complete.', 'rdp-ebook-builder');
+                        add_persistent_notice( array(
+                            'id' => 'ebook-import',
+                            'type' => 'success',
+                            'message' => $msgResult
+                        ) );                
+                    endif;                  
 
                     break;
                 default:
@@ -373,9 +364,13 @@ class RDP_EBB_ADMIN {
                    ) );
                    break;                
             }
-            
-        
         else:
+            $post->filter = '';
+            $meta = $post->_ebook_metadata;  
+            if(!$meta):
+                $meta = RDP_EBB_BOOK::bookMetadataStructure();
+            endif;            
+            
             $meta['title'] = strip_tags(RDP_EBB_Utilities::globalRequest('post_title'));
             $meta['subtitle'] = strip_tags(RDP_EBB_Utilities::globalRequest('wb_subtitle'));
             $meta['editor'] = strip_tags(RDP_EBB_Utilities::globalRequest('wb_editor'));
@@ -423,7 +418,22 @@ class RDP_EBB_ADMIN {
             $settings['cover_size'] = strip_tags(RDP_EBB_Utilities::globalRequest('wb_cover_size'));
             $meta['settings'] = $settings;
             
-            RDP_EBB_Utilities::handlePostMeta($post_id,$meta);        
+            RDP_EBB_Utilities::savePostMeta($post_id,$meta);  
+            
+            $bookObj = RDP_EBB_BOOK::fromJSONFile($post_id);
+            if($bookObj){
+                $bookObj->post_title = $meta['title'];
+                $bookObj->_ebook_metadata->title = $meta['title'];
+                $bookObj->_ebook_metadata->subtitle = $meta['subtitle'];
+                $bookObj->_ebook_metadata->cover_theme = $meta['cover_theme'];
+                $bookObj->_ebook_metadata->title_image = $meta['image_url'];
+                $bookObj->_ebook_metadata->cover_image = $meta['cover_image'];
+                $bookObj->_ebook_metadata->editor = $meta['editor'];
+                $bookObj->_ebook_metadata->publisher = $meta['publisher'];
+                $bookObj->_ebook_metadata->author_id = $meta['author_id'];
+                RDP_EBB_BOOK::toJSONFile($bookObj);                
+            }
+
         endif;
         
     }//save_book_meta
@@ -434,16 +444,15 @@ class RDP_EBB_ADMIN {
     ------------------------------------------------------------------------------*/     
     static function add_metaboxes(){
         global $post;
-        add_meta_box("subtitle", "Subtitle", 'RDP_EBB_ADMIN::renderSubtitleMetabox', 'ebook', "normal", "high");    
-        add_meta_box("cover_builder", "Cover Builder", 'RDP_EBB_ADMIN::renderCoverBuilderMetabox', 'ebook', "normal", "high");    
+        if($post->post_status !== 'auto-draft') add_meta_box("subtitle", "Subtitle", 'RDP_EBB_ADMIN::renderSubtitleMetabox', 'ebook', "normal", "high");    
+        if($post->post_status !== 'auto-draft') add_meta_box("cover_builder", "Cover Builder", 'RDP_EBB_ADMIN::renderCoverBuilderMetabox', 'ebook', "normal", "high");    
         add_meta_box("import", "Import", 'RDP_EBB_ADMIN::renderImportMetabox', 'ebook', "normal", "high");        
-        add_meta_box("book_settings", "Settings", "RDP_EBB_ADMIN::renderSettingsMetabox", 'ebook', "normal", "high");
-        add_meta_box("book_meta", "Metadata", "RDP_EBB_ADMIN::renderMetadataMetabox", 'ebook', "normal", "high");             
+        if($post->post_status !== 'auto-draft') add_meta_box("book_settings", "Settings", "RDP_EBB_ADMIN::renderSettingsMetabox", 'ebook', "normal", "high");
+        if($post->post_status !== 'auto-draft') add_meta_box("book_meta", "Metadata", "RDP_EBB_ADMIN::renderMetadataMetabox", 'ebook', "normal", "high");             
     }//add_metaboxes  
     
     
     static function renderSettingsMetabox($post){
-        //if($post->post_status === 'auto-draft')return;            
         // set filter to empty string so custom meta is returned
         $post->filter = '';
         $meta = $post->_ebook_metadata; 
@@ -649,7 +658,6 @@ class RDP_EBB_ADMIN {
     
     
     static function renderSubtitleMetabox($post){
-        //if($post->post_status === 'auto-draft')return;
         // Noncename needed to verify where the data originated
         echo '<input type="hidden" name="subtitle_nonce" id="subtitle_nonce" value="' .  wp_create_nonce( plugin_basename(__FILE__) ) . '" />';
         // set filter to empty string so custom meta is returned
@@ -663,7 +671,6 @@ class RDP_EBB_ADMIN {
     }//renderSubtitleMetabox    
     
     static function renderMetadataMetabox($post){
-        //if($post->post_status === 'auto-draft')return;
         // set filter to empty string so custom meta is returned
         $post->filter = '';
         $meta = $post->_ebook_metadata;
@@ -702,7 +709,6 @@ class RDP_EBB_ADMIN {
     }//renderImportMetabox    
     
     static function renderCoverBuilderMetabox($post){
-        //if($post->post_status === 'auto-draft')return;
         $baseURL = RDP_EBB_PLUGIN_BASEURL;
         $post->filter = '';  
         $bookMeta = $post->_ebook_metadata;
@@ -839,6 +845,10 @@ EOH;
         
         $class = empty($imageURL)? "selected" : "";
         echo '<li class="image_preview no-image"><a class="image_chooser_link"><img class="cover-image-thumbnail no-image ' . $class . '"></a></li>';
+        
+        $wikipediaLogo = RDP_EBB_PLUGIN_BASEURL . '/pl/images/Wikipedia-logo.png';
+        $class = ($imageURL === $wikipediaLogo)? "selected" : "";
+        echo '<li><a class="image_chooser_link"><img class="cover-image-thumbnail ' . $class . '" style="max-height: 80px; width: auto;" src="' . $wikipediaLogo . '"></a></li>';
         
         foreach ($images as $image) {
             $class = ($imageURL === $image)? "selected" : "";

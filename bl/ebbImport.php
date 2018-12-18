@@ -4,7 +4,8 @@ if ( ! defined('WP_CONTENT_DIR')) exit('No direct script access allowed');
 
 class RDP_EBB_IMPORT {
     
-    public static function handleMediawikiImport($URL,$dataPass,$sErrorMsgPreamble,$baseURL,$book_id = 0) {
+    public static function handleMediawikiImport($URL,$dataPass,$baseURL,$book_id = 0) {
+        
         $hasError = false;
         $curl = curl_init();
         // Make the request
@@ -18,39 +19,48 @@ class RDP_EBB_IMPORT {
 
         $response = curl_exec($curl);
 
+        $html = null;
+        $body = null;
+        
+
         if (FALSE === $response){
             $msg = __("Unable to retrieve book content.\nCode: cURL error",'rdp-wiki-book-builder');
             $dataPass['code'] = '400' ;
-            $dataPass['message'] = $sErrorMsgPreamble . $msg;
+            $dataPass['messages'][] = RDP_EBB_PLUGIN::errorMessagePreamble . $msg;
             $hasError = true;            
-            throw new Exception(curl_error($curl), curl_errno($curl));
+//            throw new Exception(curl_error($curl), curl_errno($curl));
         }
         curl_close($curl);
 
-        $html = new rdp_simple_html_dom(); // Create new parser instance
-        $html->load($response,true,false); 
-        
-        if(!$html){
-            $msg = __("Unable to retrieve book content.\nCode: DOM Parser failed to load",'rdp-wiki-book-builder');
-            $dataPass['code'] = '400' ;
-            $dataPass['message'] = $sErrorMsgPreamble . $msg;
-            $hasError = true;
-            return $dataPass;
-        }
-        
-        $body = $html->find('#content',0);
+        if(!$hasError):
+            $html = new rdp_simple_html_dom(); // Create new parser instance
+            $html->load($response,true,false); 
 
-        if(!$body){
-            $msg = __("Unable to retrieve book content.\nCode: No Content",'rdp-wiki-book-builder');
-            $dataPass['code'] = '400' ;
-            $dataPass['message'] = $sErrorMsgPreamble . $msg;
-            $hasError = true;
-            return $dataPass;
-        }  
-       
-        // parse HTML in body object
-        self::mediawikiContentPieces_Parse($body,$URL,$baseURL,$book_id);
-//       $downloadURL = RDP_WBB_BOOK::generateHTMLFile($book_id);
+            if(!$html){
+                $msg = __("Unable to retrieve book content.\nCode: DOM Parser failed to load",'rdp-wiki-book-builder');
+                $dataPass['code'] = '400' ;
+                $dataPass['messages'][] = RDP_EBB_PLUGIN::errorMessagePreamble . $msg;
+                $hasError = true;
+            }            
+        endif;
+
+        if(!$hasError):
+            $body = $html->find('#content',0);
+
+            if(!$body){
+                $msg = __("Unable to retrieve book content.\nCode: No Content",'rdp-wiki-book-builder');
+                $dataPass['code'] = '400' ;
+                $dataPass['messages'][] = RDP_EBB_PLUGIN::errorMessagePreamble . $msg;
+                $hasError = true;
+            }             
+        endif;        
+ 
+       if(!$hasError):
+            // parse HTML in body object
+           $dataPass = self::mediawikiContentPieces_Parse($body,$URL,$baseURL,$book_id);
+           if($dataPass['code'] == 200) $downloadURL = RDP_EBB_BOOK::generateHTMLFile($book_id);           
+       endif;
+
         
         $html->clear(); 
         unset($html);   
@@ -73,21 +83,89 @@ class RDP_EBB_IMPORT {
         $book = get_post($book_id);
         $book->filter('');
         $bookMeta = $book->_ebook_metadata;
+        $parentKey = '';
+        
 
+        // array to store error messages
+         $dataPass = [
+            'code' => 200,
+            'messages' => []
+        ];
+        
+        $sTitle = '';  
+        $sSubtitle = '';
+        $sEditor = $current_user->display_name;  
+        $sPublisher = $current_user->display_name;  
+        $sLanguage = '';
+        $sCoverStyle = 'nico_6';
+        $sCoverImageURL = RDP_EBB_PLUGIN_BASEURL . '/pl/cover.php?';
+        $sTitleimageURL = '';  
+
+        $headline = $body->find('h2 .mw-headline',0);
+        if($headline){
+            $sTitle = $headline->plaintext;
+        }
+
+        $headline = $body->find('h3 .mw-headline',0);
+        if($headline){
+            $sSubtitle = $headline->plaintext;
+        }         
+        
         if($bookMeta):
             $bookMeta['items'] = [];
             $bookMeta['toc'] = [];
+            $bookMeta['title'] = $sTitle;
+            $bookMeta['subtitle'] = $sSubtitle;
+            $bookMeta['link'] = $URL;
+            
+            $params = [
+                'cover_style'   => $bookMeta['cover_theme'],
+                'subtitle'      => $bookMeta['subtitle'],
+                'editor'        => $bookMeta['editor'],
+                'title'         => $bookMeta['title'],
+                'title_image'   => $bookMeta['image_url'],
+                'publisher'     => $bookMeta['publisher']
+            ];
 
-            if(!add_post_meta($book_id, '_ebook_metadata', $bookMeta, true)):
-                update_post_meta($book_id, '_ebook_metadata', $bookMeta);
-            endif;
+            $sCoverImageURL .= http_build_query($params);             
+            $bookMeta['cover_image'] = $sCoverImageURL;
+            RDP_EBB_Utilities::savePostMeta($book_id,$bookMeta);
+            
+            $book->post_title = $bookMeta['title'];
+            $post_id = wp_update_post( $book ); 
+
+            RDP_EBB_BOOK::handleFeaturedImage($book_id, $bookMeta['cover_image']);            
             
         else:
-           
-            if(!add_post_meta($book_id, '_ebook_metadata', $bookMeta, true)){
-                update_post_meta($book_id, '_ebook_metadata', $bookMeta);
-            }    
-            RDP_EBB_BOOK::handleFeaturedImage($book_id, $sCoverImageURL);
+            $params = [
+                'cover_style'   => $sCoverStyle,
+                'subtitle'      => $sSubtitle,
+                'editor'        => $sEditor,
+                'title'         => $sTitle,
+                'title_image'   => $sTitleimageURL,
+                'publisher'     => $sPublisher
+            ];
+
+            $sCoverImageURL .= http_build_query($params);             
+            
+            $bookMeta = RDP_EBB_BOOK::bookMetadataStructure();
+            $bookMeta['title'] = $sTitle;
+            $bookMeta['subtitle'] = $sSubtitle;
+            $bookMeta['editor'] = $sEditor;
+            $bookMeta['cover_theme'] = $sCoverStyle;
+            $bookMeta['cover_image'] = $sCoverImageURL;
+            $bookMeta['image_url'] = $sTitleimageURL;
+            $bookMeta['language'] = $sLanguage;
+            $bookMeta['link'] = $URL;
+            $bookMeta['author_id'] = $book->post_author;
+            $bookMeta['editor'] = $current_user->display_name;            
+            $bookMeta['publisher'] = $current_user->display_name; 
+            RDP_EBB_Utilities::savePostMeta($book_id,$bookMeta); 
+            
+            $book->post_title = $bookMeta['title'];
+            $post_id = wp_update_post( $book );            
+            
+            RDP_EBB_BOOK::handleFeaturedImage($book_id, $bookMeta['cover_image']);
                    
         endif;
         
@@ -102,7 +180,7 @@ class RDP_EBB_IMPORT {
                 switch ($item->tag) {
                     case 'dt':
                         $sTitle = RDP_EBB_Utilities::unXMLEntities($item->plaintext);
-                        RDP_EBB_CHAPTER::add( $sTitle );
+                        RDP_EBB_CHAPTER::add( $sTitle, $book_id );
                         $parentKey = md5($sTitle);
                         break;
                     case 'dd':
@@ -124,7 +202,11 @@ class RDP_EBB_IMPORT {
                             $sTitle = RDP_EBB_Utilities::unXMLEntities($item->plaintext);
                         }
                         
-                        RDP_EBB_ARTICLE::add($sTitle, $sURL, $parentKey);
+                        $result = RDP_EBB_ARTICLE::add($sTitle, $sURL, $book_id, $parentKey);
+                        if($result['code'] !== 200):
+                            $dataPass['code'] = 400;
+                            $dataPass['messages'][] = $result['message'];
+                        endif;
                         break;
                     default:
                         break;
@@ -132,57 +214,9 @@ class RDP_EBB_IMPORT {
             }
         }
 
-
+        return $dataPass;
     }//mediawikiContentPieces_Parse 
     
     
-    private static function prepareMetadata() {
-        $sTitle = '';  
-        $sSubtitle = '';
-        $sEditor = $current_user->display_name;  
-        $sPublisher = $current_user->display_name;  
-        $sLanguage = '';
-        $sCoverStyle = 'nico_6';
-        $sCoverImageURL = RDP_EBB_PLUGIN_BASEURL . '/pl/cover.php';
-        $sTitleimageURL = '';  
-        $parentKey = '';
 
-        $headline = $body->find('h2 .mw-headline',0);
-        if($headline){
-            $sTitle = $headline->plaintext;
-        }
-
-        $headline = $body->find('h3 .mw-headline',0);
-        if($headline){
-            $sSubtitle = $headline->plaintext;
-        }   
-
-        $params = [
-            'cover_style'   => $sCoverStyle,
-            'subtitle'      => $sSubtitle,
-            'editor'        => $sEditor,
-            'title'         => $sTitle,
-            'title_image'   => $sTitleimageURL,
-            'publisher'     => $sPublisher
-        ];
-
-        $sCoverImageURL .= '?' . http_build_query($params);            
-
-        $book->post_title = $sTitle;
-        $post_id = wp_update_post( $book );
-
-        $bookMeta = RDP_EBB_BOOK::bookMetadataStructure();
-        $bookMeta['title'] = $sTitle;
-        $bookMeta['subtitle'] = $sSubtitle;
-        $bookMeta['editor'] = $sEditor;
-        $bookMeta['cover_theme'] = $sCoverStyle;
-        $bookMeta['cover_image'] = $sCoverImageURL;
-        $bookMeta['image_url'] = $sTitleimageURL;
-        $bookMeta['language'] = $sLanguage;
-        $bookMeta['link'] = $URL;
-        $bookMeta['author_id'] = $book->post_author;
-        $bookMeta['editor'] = $current_user->display_name;            
-        $bookMeta['publisher'] = $current_user->display_name;  
-        return $bookMeta;
-    }//prepareMetadata
 }//RDP_EBB_IMPORT
