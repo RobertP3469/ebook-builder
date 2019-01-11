@@ -1,12 +1,74 @@
 var $j=jQuery.noConflict();
 // Use jQuery via $j(...)
-var wikipress_book_builder_timeoutId = 0;
 
 jQuery(document).ready(rdp_ebb_admin_onReady);
 function rdp_ebb_admin_onReady(){
     console.log('Enter: rdp_ebb_admin_onReady');
     const coverPreviewArea_wrap = $j('.coverPreviewArea_wrap');
     if(coverPreviewArea_wrap.length) initCoverBuilder();
+    
+    // Uploading files
+    var file_frame;  
+    var wp_media_post_id = wp.media.model.settings.post.id; // Store the old id
+    
+    jQuery('#btnUploadAltImage').on('click', function( event ){
+
+        // If the media frame already exists, reopen it.
+        if ( file_frame ) {
+                // Set the post ID to what we want
+                //file_frame.uploader.uploader.param( 'post_id', set_to_post_id );
+                // Open frame
+                file_frame.open();
+                return;
+        } else {
+                // Set the wp.media post id so the uploader grabs the ID we want when initialised
+                //wp.media.model.settings.post.id = set_to_post_id;
+        }
+        // Create the media frame.
+        file_frame = wp.media.frames.file_frame = wp.media({
+                title: 'Select a image to upload',
+                button: {
+                        text: 'Use this image',
+                },
+                multiple: false	// Set to true to allow multiple files to be selected
+        });
+        // When an image is selected, run a callback.
+        file_frame.on( 'select', function() {
+                // We set multiple to false so only get one image from the uploader
+                attachment = file_frame.state().get('selection').first().toJSON();
+                // Do something with attachment.id and/or attachment.url here
+console.log(attachment);
+                $j('#alternative-image-preview' ).attr( 'src', attachment.url );
+                $j('#alternative-image-url' ).val( attachment.url );
+                $j('#txtImageURLInput').val( attachment.url );
+                $j('#btnUploadAltImage').addClass('hidden');
+                $j('#btnRemoveAltImage').removeClass('hidden');                
+                // Restore the main post ID
+                wp.media.model.settings.post.id = wp_media_post_id;
+        });
+                // Finally, open the modal
+                file_frame.open();
+    });
+    
+    
+    $j('#btnRemoveAltImage').on('click',function(e){
+        // check if txtImageURLInput equals alternative-image-url...
+        if($j('#txtImageURLInput').val() === $j( '#alternative-image-url' ).val()){
+            // ... if so, clear the value of txtImageURLInput
+            $j('#txtImageURLInput').val( '' );            
+        }
+        
+        // remove alternative image preview
+        $j( '#alternative-image-preview' ).removeAttr( 'src' );
+        // remove value of hidden input
+        $j( '#alternative-image-url' ).val( '' );  
+
+        // toggle buttons
+        $j('#btnUploadAltImage').removeClass('hidden');
+        $j('#btnRemoveAltImage').addClass('hidden');         
+    });
+ 
+    
     
 }//rdp_ebb_admin_onReady
 
@@ -40,6 +102,9 @@ function initCoverBuilder(){
         console.log('sSrc = '+sSrc);
         
         document.getElementById('txtImageURLInput').value = sSrc;
+        document.getElementById('alternative-image-url').value = '';
+        document.getElementById('alternative-image-preview').src = '';
+        
     });  
     
     $j(document).on('click','#btnGenerateBook',generateBook);

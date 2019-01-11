@@ -303,8 +303,7 @@ class RDP_EBB_ADMIN {
         Do import or save on update
     ------------------------------------------------------------------------------*/      
     static function save_book_meta($post_id, $post, $update){
-        global $typenow;
-        if ( 'ebook' !== $typenow ) return;
+        if ( 'ebook' !== $post->post_type ) return;
         if(!$update)return;
         
         remove_action('save_post', 'RDP_EBB_ADMIN::save_book_meta', 1, 3); 
@@ -369,7 +368,13 @@ class RDP_EBB_ADMIN {
             $meta = $post->_ebook_metadata;  
             if(!$meta):
                 $meta = RDP_EBB_BOOK::bookMetadataStructure();
-            endif;            
+            endif;   
+            
+            $alternative_image = RDP_EBB_Utilities::globalRequest('alternative-image-url','');
+            if ( ! add_post_meta( $post->ID, '_alternative_image', $alternative_image, true ) ) { 
+               update_post_meta( $post->ID, '_alternative_image', $alternative_image );
+            }                      
+            
             
             $meta['title'] = strip_tags(RDP_EBB_Utilities::globalRequest('post_title'));
             $meta['subtitle'] = strip_tags(RDP_EBB_Utilities::globalRequest('wb_subtitle'));
@@ -714,22 +719,20 @@ class RDP_EBB_ADMIN {
         $bookMeta = $post->_ebook_metadata;
         if(empty($bookMeta)) $bookMeta = []; 
         
-        $images = RDP_EBB_BOOK::allImages($post->ID);
+        $allImages = RDP_EBB_BOOK::allImages($post->ID);
         
         $subtitle = RDP_EBB_Utilities::rgar($bookMeta, 'subtitle','');
         $publisher = RDP_EBB_Utilities::rgar($bookMeta, 'publisher','');
         $editor = RDP_EBB_Utilities::rgar($bookMeta, 'editor','');
         $coverStyle = RDP_EBB_Utilities::rgar($bookMeta, 'cover_theme');
         if(empty($coverStyle))$coverStyle = 'nico_6';
-        $imageURL = (key_exists('image_url', $bookMeta))? esc_attr($bookMeta['image_url']) : '';
+        $imageURL = (key_exists('image_url', $bookMeta))? $bookMeta['image_url'] : '';
 
         $titleEncoded = urlencode($post->post_title);
         $subtitleEncoded = urlencode($subtitle);
         $publisherEncoded = urlencode($publisher);
         $editorEncoded = urlencode($editor);
         $imageURLEncoded = (key_exists('image_url', $bookMeta))? urlencode($bookMeta['image_url']) : '';
-        
-        $imageChooseText = __('Choose an image for the cover','rdp-wiki-book-builder');        
 
         $sHTML = <<<EOH
                 <div class="coverPreviewArea_wrap">
@@ -828,14 +831,18 @@ class RDP_EBB_ADMIN {
                 </div><!-- #color-theme -->   
                 </div>
                 </div>
-
-                
                 
                  
 EOH;
       
         echo $sHTML;
-        echo '<input type="hidden" id="txtImageURLInput" name="bookImageURL" value="' . $imageURL . '" /> ';
+        
+        $imageChooseText = __('Choose an image for the cover','rdp-ebook-builder');
+        $altImageHeaderText = __('Alternative image for cover','rdp-ebook-builder');
+        $altImageChooseText = __('Choose or upload another image for the cover','rdp-ebook-builder'); 
+        $altImage = get_post_meta($post->ID, '_alternative_image', true);
+        
+        echo '<input type="hidden" id="txtImageURLInput" name="bookImageURL" value="' . esc_attr($imageURL) . '" /> ';
         echo '<input type="hidden" id="txtCoverThemeInput" name="bookCoverTheme" value="' .$coverStyle. '" /> ';
         echo '<div class="image_chooser_wrap">';
         echo '<div id="image-choose-text" class="label">' . $imageChooseText . ':</div>';
@@ -848,16 +855,28 @@ EOH;
         
         $wikipediaLogo = RDP_EBB_PLUGIN_BASEURL . '/pl/images/Wikipedia-logo.png';
         $class = ($imageURL === $wikipediaLogo)? "selected" : "";
-        echo '<li><a class="image_chooser_link"><img class="cover-image-thumbnail ' . $class . '" style="max-height: 80px; width: auto;" src="' . $wikipediaLogo . '"></a></li>';
+        echo '<li><a class="image_chooser_link"><img class="cover-image-thumbnail ' . $class . '" style="max-height: 80px; width: auto;" src="' . esc_attr($wikipediaLogo) . '"></a></li>';
         
-        foreach ($images as $image) {
+        foreach ($allImages as $image) {
             $class = ($imageURL === $image)? "selected" : "";
-            echo '<li><a class="image_chooser_link"><img class="cover-image-thumbnail ' . $class . '" style="max-height: 80px; width: auto;" src="' . $image . '"></a></li>';  
+            echo '<li><a class="image_chooser_link"><img class="cover-image-thumbnail ' . $class . '" style="max-height: 80px; width: auto;" src="' . esc_attr($image) . '"></a></li>';  
         }
 
         echo '</ul><!-- #image_chooser -->';
         echo '<div class="thumbelina-but horiz right">&#707;</div>';
         echo '</div><!-- #cover_image --> ';
+        
+        printf ('<h2 style="margin-top: 10px; margin-bottom: 0; padding: 0;"><b>%s:</b></h2>', $altImageHeaderText);
+        printf ('<p style="margin-top: 0; margin-bottom: 20px;">%s</p>', $altImageChooseText);
+        
+        
+        echo "<div class='alternative-image-preview-wrapper'>";
+        printf ("<img id='alternative-image-preview' src='%s' style='max-height: 100px;'>",  esc_attr($altImage));
+        echo '</div><!-- .alternative-image-preview-wrapper -->';
+        printf ('<button id="btnUploadAltImage" type="button" class="button %s">%s</button>', empty($altImage)? '' : 'hidden' ,esc_html( 'Select Alternative Image' ));
+        printf ('<button id="btnRemoveAltImage" type="button" class="button %s">%s</button>', empty($altImage)? 'hidden' : '',esc_html( 'Remove' ));
+        printf (" <input type='hidden' name='alternative-image-url' id='alternative-image-url' value='%s'>", esc_attr($altImage));
+        
         echo '</div>';
     }//renderCoverBuilderMetabox  
     

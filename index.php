@@ -4,7 +4,7 @@
 Plugin Name: RDP eBook Builder
 Plugin URI: http://robert-d-payne.com/
 Description: Build books from wiki pages. Requires RDP Wiki Embed plugin.
-Version: 1.0.0
+Version: 1.1.0
 Author: Robert D Payne
 Author URI: http://robert-d-payne.com/
 License: GPLv2 or later
@@ -27,7 +27,7 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
         public static $options_name = 'rdp_ebb_options'; 
         public static $metadata_key = '_ebook_metadata';
 
-        public static $version = '0.1.0';
+        public static $version = '1.1.0';
         public static $paper_sizes = array('A4','Letter');
         private $_instanceBook = null;
         private $_options = array();        
