@@ -8,6 +8,7 @@ class RDP_EBB_ADMIN {
     public function __construct( $version ) {
         $this->version = $version;
         add_action('admin_enqueue_scripts', array($this, 'adminEnqueueScripts'));
+        add_action('save_post', 'RDP_EBB_ADMIN::save_book_meta', 1, 3);
     }//__construct
     
     
@@ -53,8 +54,6 @@ class RDP_EBB_ADMIN {
     static function add_menu_item(){
         if ( !current_user_can('activate_plugins') ) return;
         add_options_page( 'RDP eBook Builder', 'RDP EBB', 'manage_options', 'rdp-ebook-builder', 'RDP_EBB_ADMIN::generate_page' );
-    
-        add_action('save_post', 'RDP_EBB_ADMIN::save_book_meta', 1, 3);
     } //add_menu_item   
     
     /*------------------------------------------------------------------------------
@@ -159,7 +158,41 @@ class RDP_EBB_ADMIN {
             'rdp-ebook-builder',
             'rdp_ebb_book'
         ); 
-    }//admin_page_init  
+         
+        // security
+        add_settings_section(
+            'rdp_ebb_security',
+            esc_html__('Security','rdp-ebook-builder'),
+            'RDP_EBB_ADMIN::security_section_text',
+            'rdp-ebook-builder'
+	);
+        add_settings_field(
+            'whitelist',
+            '',
+            array('RDP_EBB_ADMIN', 'whitelist_input'),
+            'rdp-ebook-builder',
+            'rdp_ebb_security'
+        );          
+    }//admin_page_init 
+    
+    /*------------------------------------------------------------------------------
+        Security Section
+    ------------------------------------------------------------------------------*/
+    static function security_section_text() {
+        echo '<p>';
+        _e ('Restrict the domains of wikis that you want content to be embedded from.<br />Example: <em>en.wikipedia.org</em> would allow any urls from the english wikipedia, but not from <em>de.wikipedia.org</em> German wikipedia','rdp-ebook-builder');
+        echo '</p>';
+    }//security_section_text 
+
+    static function whitelist_input() {
+        $default_settings = RDP_EBB_PLUGIN::default_settings();
+        $sLabel = esc_attr__('Separate domains by new lines', 'rdp-ebook-builder');
+        $options = get_option( RDP_EBB_PLUGIN::$options_name );
+        $text_string = isset($options['whitelist'])? $options['whitelist'] : $default_settings['whitelist'];
+        $text_string = esc_textarea($text_string);
+        echo '<span class="alignleft">' . $sLabel . '</span><br />';
+        echo '<textarea name="rdp_ebb_options[whitelist]"  rows="10" cols="50">' . $text_string . '</textarea>';        
+    }//whitelist_input    
     
     /*------------------------------------------------------------------------------
         Book Display Settings
@@ -273,16 +306,17 @@ class RDP_EBB_ADMIN {
        $default_settings = RDP_EBB_PLUGIN::default_settings();
  	$options = array(
                 'sBookContentBeneathCover' => (isset($input['sBookContentBeneathCover'])? $input['sBookContentBeneathCover'] : $default_settings['sBookContentBeneathCover'] ),
-                'books_per_rss'       => (isset($input['books_per_rss']) && intval($input['books_per_rss']) > 0 ? $input['books_per_rss'] : $default_settings['books_per_rss'] ),
-                'fAllowClone'         => (isset( $input['fAllowClone']) && $input['fAllowClone'] == 1 ? 1 : 0 ),
-                'fBookShowCover'      => (isset( $input['fBookShowCover']) && $input['fBookShowCover'] == 1 ? 1 : 0 ),
-                'fBookShowTitle'      => (isset( $input['fBookShowTitle']) && $input['fBookShowTitle'] == 1 ? 1 : 0 ),
-                'fBookShowSubtitle'   => (isset( $input['fBookShowSubtitle']) && $input['fBookShowSubtitle'] == 1 ? 1 : 0 ),
-                'fBookShowFullTitle'  => (isset( $input['fBookShowFullTitle']) && $input['fBookShowFullTitle'] == 1 ? 1 : 0 ),
-                'fBookShowEditor'     => (isset( $input['fBookShowEditor']) && $input['fBookShowEditor'] == 1 ? 1 : 0 ),
-                'fBookShowTOC'        => (isset( $input['fBookShowTOC']) && $input['fBookShowTOC'] == 1 ? 1 : 0 ),
-                'sBookTOCLinks'       => (isset( $input['sBookTOCLinks'])? $input['sBookTOCLinks'] : $default_settings['sBookTOCLinks'] ),
-                'log_in_msg'          => (isset( $input['log_in_msg'])? $input['log_in_msg'] : $default_settings['log_in_msg'] )
+                'books_per_rss'         => (isset($input['books_per_rss']) && intval($input['books_per_rss']) > 0 ? $input['books_per_rss'] : $default_settings['books_per_rss'] ),
+                'fAllowClone'           => (isset( $input['fAllowClone']) && $input['fAllowClone'] == 1 ? 1 : 0 ),
+                'fBookShowCover'        => (isset( $input['fBookShowCover']) && $input['fBookShowCover'] == 1 ? 1 : 0 ),
+                'fBookShowTitle'        => (isset( $input['fBookShowTitle']) && $input['fBookShowTitle'] == 1 ? 1 : 0 ),
+                'fBookShowSubtitle'     => (isset( $input['fBookShowSubtitle']) && $input['fBookShowSubtitle'] == 1 ? 1 : 0 ),
+                'fBookShowFullTitle'    => (isset( $input['fBookShowFullTitle']) && $input['fBookShowFullTitle'] == 1 ? 1 : 0 ),
+                'fBookShowEditor'       => (isset( $input['fBookShowEditor']) && $input['fBookShowEditor'] == 1 ? 1 : 0 ),
+                'fBookShowTOC'          => (isset( $input['fBookShowTOC']) && $input['fBookShowTOC'] == 1 ? 1 : 0 ),
+                'sBookTOCLinks'         => (isset( $input['sBookTOCLinks'])? $input['sBookTOCLinks'] : $default_settings['sBookTOCLinks'] ),
+                'log_in_msg'            => (isset( $input['log_in_msg'])? $input['log_in_msg'] : $default_settings['log_in_msg'] ),
+                'whitelist'             => (isset( $input['whitelist'])? $input['whitelist'] : $default_settings['whitelist'] )
             );
         return $options;
     } //options_validate 
@@ -308,6 +342,7 @@ class RDP_EBB_ADMIN {
         
         remove_action('save_post', 'RDP_EBB_ADMIN::save_book_meta', 1, 3); 
         
+        /* check if import button was clicked */
         if(!RDP_EBB_Utilities::rgempty('btnRDPWBImport')):
             $sourceName = '';
             $source = strip_tags(RDP_EBB_Utilities::globalRequest('wb_source'));
@@ -322,12 +357,20 @@ class RDP_EBB_ADMIN {
             $baseURL = '';        
             $needle = 'https://www.lablynxpress.com';
             $test = substr($source, 0, strlen($needle));
-            if($needle === $test) $sourceName = 'lablynxpress'; $baseURL =  $needle;           
+            if($needle === $test):
+                $sourceName = 'lablynxpress'; 
+                $baseURL =  $needle;           
+            endif;
             
+
             $needle = 'https://www.limswiki.org';
             $test = substr($source, 0, strlen($needle));
-            if($needle === $test) $sourceName = 'limswiki'; $baseURL =  $needle; 
-            
+            if($needle === $test):
+                $sourceName = 'limswiki'; 
+                $baseURL =  $needle;                 
+            endif;
+
+
             switch ($sourceName) {
                 case 'lablynxpress':
                 case 'limswiki':
@@ -384,7 +427,6 @@ class RDP_EBB_ADMIN {
             $meta['author_id'] = RDP_EBB_Utilities::globalRequest('post_author_override');
             $meta['image_url'] = RDP_EBB_Utilities::globalRequest('bookImageURL');
             $meta['cover_theme'] = RDP_EBB_Utilities::globalRequest('bookCoverTheme');
-            
             
             $params = [
                 'cover_style'   => $meta['cover_theme'],
@@ -450,11 +492,36 @@ class RDP_EBB_ADMIN {
     static function add_metaboxes(){
         global $post;
         if($post->post_status !== 'auto-draft') add_meta_box("subtitle", "Subtitle", 'RDP_EBB_ADMIN::renderSubtitleMetabox', 'ebook', "normal", "high");    
-        if($post->post_status !== 'auto-draft') add_meta_box("cover_builder", "Cover Builder", 'RDP_EBB_ADMIN::renderCoverBuilderMetabox', 'ebook', "normal", "high");    
-        add_meta_box("import", "Import", 'RDP_EBB_ADMIN::renderImportMetabox', 'ebook', "normal", "high");        
-        if($post->post_status !== 'auto-draft') add_meta_box("book_settings", "Settings", "RDP_EBB_ADMIN::renderSettingsMetabox", 'ebook', "normal", "high");
-        if($post->post_status !== 'auto-draft') add_meta_box("book_meta", "Metadata", "RDP_EBB_ADMIN::renderMetadataMetabox", 'ebook', "normal", "high");             
+        add_meta_box("import", "Import", 'RDP_EBB_ADMIN::renderImportMetabox', 'ebook', "normal", "high");
+        if($post->post_status !== 'auto-draft'){
+            add_meta_box("generate_book", "Generate Book", 'RDP_EBB_ADMIN::renderBookGenerationMetabox', 'ebook', "normal", "high");            
+            add_meta_box("cover_builder", "Cover Builder", 'RDP_EBB_ADMIN::renderCoverBuilderMetabox', 'ebook', "normal", "high");    
+            add_meta_box("book_settings", "Settings", "RDP_EBB_ADMIN::renderSettingsMetabox", 'ebook', "normal", "high");
+            add_meta_box("book_meta", "Metadata", "RDP_EBB_ADMIN::renderMetadataMetabox", 'ebook', "normal", "high");  
+        }
+        
+           
     }//add_metaboxes  
+    
+    static function renderBookGenerationMetabox($post) {
+
+        echo '<p style="margin-bottom: 0;">';
+        echo '<button id="btnGenerateBook" type="button">';
+        _e('Generate Book', 'rdp-ebook-builder');
+        echo '</button>';
+        echo '<img id="wb_generating_book_indicator" style="display:none">';
+        echo '</p>';
+        
+        // download url
+        $post->filter = '';
+        $meta = $post->_ebook_metadata;         
+        $download_url = RDP_EBB_Utilities::rgar($meta, 'download_url','');        
+        echo '<p style="margin-bottom: 0;">';
+        _e('Download URL', 'rdp-ebook-builder');
+        echo ':</p>';
+        echo '<input type="text" readonly name="wb_download_url" id="wb_download_url" value="' . $download_url  . '" class="widefat" />';         
+        
+    }//renderBookGenerationMetabox
     
     
     static function renderSettingsMetabox($post){
@@ -482,20 +549,7 @@ class RDP_EBB_ADMIN {
             $settings['log_in_msg'] = $default_settings['log_in_msg'];
             $settings['cover_size'] = $default_settings['sCoverSize'];
         endif;
-
-        $download_url = RDP_EBB_Utilities::rgar($meta, 'download_url','');
-        echo '<p style="margin-bottom: 0;">';
-        echo '<button id="btnGenerateBook" type="button">';
-        _e('Generate Book', 'rdp-ebook-builder');
-        echo '</button>';
-        echo '<img id="wb_generating_book_indicator" style="display:none">';
-        echo '</p>';
-        echo '<p style="margin-bottom: 0;">';
-        _e('Download URL', 'rdp-ebook-builder');
-        echo ':</p>';
-        echo '<input type="text" name="wb_download_url" id="wb_download_url" value="' . $download_url  . '" class="widefat" />';         
-
-        
+       
         // cover image
         echo '<p style="margin-bottom: 0;">';         
         $show_cover = RDP_EBB_Utilities::rgar($settings, 'show_cover',1);
@@ -699,11 +753,11 @@ class RDP_EBB_ADMIN {
         $meta = $post->_ebook_metadata;
         $source = RDP_EBB_Utilities::rgar($meta, 'link','');
         // Echo out the field
-        $sDisabled = ''; //($post->post_status === 'auto-draft')? '' : 'disabled="disabled"';
+
         echo '<p style="margin-bottom: 0;">';
         _e('Source URL', 'rdp-ebook-builder');
         echo ':</p>';        
-        echo '<input type="text" ' . $sDisabled . ' name="wb_source" value="' . esc_attr__($source, 'rdp-ebook-builder')   . '" class="widefat" />';  
+        echo '<input type="text" name="wb_source" value="' . esc_attr__($source, 'rdp-ebook-builder')   . '" class="widefat" />';  
         echo '<div id="rdp-hhh-import-action">';
 
         echo '<p align="right">';

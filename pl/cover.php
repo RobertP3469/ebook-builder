@@ -27,10 +27,10 @@ class RDP_WBB_COVER {
         if(!key_exists($coverStyle, $this->colors()))$coverStyle = 'nico_6' ;
         
         $this->_theme = $coverStyle;
-        $this->_title = (isset($_GET['title']))? trim(urldecode($_GET['title'])) : '' ;       
-        $this->_subTitle = (isset($_GET['subtitle']))? trim(urldecode($_GET['subtitle'])) : '' ;
-        $this->_editor = (isset($_GET['editor']))? trim(urldecode($_GET['editor'])) : '' ;     
-        $this->_publisher = (isset($_GET['publisher']))? trim(urldecode($_GET['publisher'])) : '' ;     
+        $this->_title = (isset($_GET['title']))? self::entitiesPlain(trim(urldecode($_GET['title'])))  : '' ;       
+        $this->_subTitle = (isset($_GET['subtitle']))? self::entitiesPlain(trim(urldecode($_GET['subtitle']))) : '' ;
+        $this->_editor = (isset($_GET['editor']))? self::entitiesPlain(trim(urldecode($_GET['editor']))) : '' ;     
+        $this->_publisher = (isset($_GET['publisher']))? self::entitiesPlain(trim(urldecode($_GET['publisher']))) : '' ;     
         $image = (isset($_GET['title_image']))? trim(urldecode($_GET['title_image'])) : '' ;
         
         require_once 'gd-text/Color.php';         
@@ -182,15 +182,16 @@ class RDP_WBB_COVER {
         if(empty($this->_editor))return;
         $box = $this->mockEditorBox($im); 
         $len = strlen($this->_editor);
+        $text = 'Editor: ' . $this->_editor;
         $lines = 1;
         $heightLimit = 10;
         
-        if($len >= 37):
+        if($len > 37):
             $x = $len / 37;
             $lines = min((int) ceil($x), $lines);             
         endif;        
 
-        $nFontSize = $this->pickFontSize($box,$this->_editor,$lines,10);
+        $nFontSize = $this->pickFontSize($box,$text,$lines,10);
         $lineCount = min($box->getLineCount(),$lines);  
         $textHeight = ($nFontSize * .75) * $lineCount;           
 
@@ -203,7 +204,7 @@ class RDP_WBB_COVER {
                        
         $box->setFontSize($nFontSize);
         $box->setLineHeight(self::$STANDARD_LINE_HEIGHT);        
-        $box->draw($this->_editor);         
+        $box->draw($text);         
     }//addSubtitle   
     
     private function mockEditorBox($im) {
@@ -212,7 +213,7 @@ class RDP_WBB_COVER {
         $box->setFontFace($this->_fontFileLocation); 
         $color = $this->colors()[$this->_theme][1];
         $box->setFontColor(new Color($color,$color,$color));
-        $box->setBox(8, 15, 180, 10);
+        $box->setBox(8, 10, 180, 10);
         $box->setTextAlign('right', 'top');        
         $box->setTextWrapping(TextWrapping::WrapWithOverflow); 
         return $box;        
@@ -224,12 +225,12 @@ class RDP_WBB_COVER {
         $box = $this->mockSubTitleBox($im);  
         $len = strlen($this->_subTitle);
         $lines = 1;
-        $heightLimit = 20;
+        $heightLimit = 10;
         
-        if($len >= 47):
-            $x = $len / 47;
-            $lines = min((int) ceil($x), 4);             
-        endif;
+//        if($len >= 47):
+//            $x = $len / 47;
+//            $lines = min((int) ceil($x), 4);             
+//        endif;
         
         $size_limit = $fsize - 3;
         $nFontSize = $this->pickFontSize($box,$this->_subTitle,$lines,$size_limit);
@@ -255,7 +256,7 @@ class RDP_WBB_COVER {
         $box->setFontFace($this->_fontFileLocation); 
         $color = $this->colors()[$this->_theme][1];
         $box->setFontColor(new Color($color,$color,$color));
-        $box->setBox(8, 70, 180, 20);
+        $box->setBox(8, 90, 180, 16);
         $box->setTextAlign('right', 'top');        
         $box->setTextWrapping(TextWrapping::WrapWithOverflow); 
         return $box;        
@@ -332,7 +333,7 @@ class RDP_WBB_COVER {
           'nico_5'  => array(31,63),
           'nico_6'  => array(63,95),
           'nico_7'  => array(63,223),
-          'nico_8'  => array(63,255),
+          'nico_8'  => array(63,95),
           'nico_9'  => array(191,0),
           'nico_10'  => array(63,95),
           'nico_11'  => array(223,63),
@@ -350,7 +351,9 @@ class RDP_WBB_COVER {
         return $combos;
     }//colors
     
-    
+    static function entitiesPlain($string){
+        return str_replace ( array ( '&amp;' , '&quot;', '&apos;' , '&lt;' , '&gt;', '&quest;',  '&#39;', '&nbsp;' ), array ( '&', '"', "'", '<', '>', '?', "'"," " ), $string ); 
+    } //entitiesPlain    
 }//RDP_WBB_COVER
 
 $oRDP_WBB_COVER = new RDP_WBB_COVER();

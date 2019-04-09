@@ -9,13 +9,13 @@ class RDP_EBB_ARTICLE {
         
         $key = $url ? md5($url) : md5($title);
         $title = trim($title);
+        $html = null;
         $body = null;        
   
         $book = get_post($book_id);
         $book->filter('');
         $bookMeta = $book->_ebook_metadata;
-        $html = null;
-        
+
         // Array to store feedback to be returned to calling code
         $result = [
             'code'  => 200,
@@ -34,20 +34,25 @@ class RDP_EBB_ARTICLE {
         
         if(!empty($url)):
             $curl = curl_init();
-            // Make the request
-            curl_setopt($curl, CURLOPT_URL, $item['url'] );
+            curl_setopt($curl, CURLOPT_URL, $url );
             curl_setopt($curl, CURLOPT_POST, false);
+            curl_setopt($curl, CURLOPT_USERAGENT,'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');        
             curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
-            curl_setopt($curl, CURLOPT_COOKIEFILE, "/tmp/cookie.txt");
-            curl_setopt($curl, CURLOPT_COOKIEJAR, "/tmp/cookie.txt");
+            curl_setopt($curl, CURLOPT_COOKIEFILE, "");
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-
+            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT ,0); 
+            curl_setopt($curl, CURLOPT_TIMEOUT, 400); //timeout in seconds    
+            set_time_limit(0);
+            // Make the request
             $response = curl_exec($curl);
+        
             if (FALSE === $response):
+                $errMsg = curl_error($curl);
+
                 $result = [
                     'code'  => 400,
-                    'message'   => "Unable to process content at $url.\nError message: curl_error($curl)\nCode: Add article"
+                    'message'   => "Unable to fetch content at $url.\nError message: $errMsg\nCode: Add article"
                 ];  
             else:
                 // Create new parser instance
@@ -64,6 +69,11 @@ class RDP_EBB_ARTICLE {
             endif;
 
             curl_close($curl);
+        else:
+            $result = [
+                'code'  => 400,
+                'message'   => "Missing article URL.\nCode: Add article"
+            ];             
         endif;
         
         if($result['code'] == 200):
@@ -169,5 +179,69 @@ class RDP_EBB_ARTICLE {
         return $images;
     }//gatherImages    
     
-    
+    static function fetchEmbed() {
+        header("Access-Control-Allow-Origin: *");
+        $resource = RDP_EBB_Utilities::globalRequest('resource');
+
+        $html = null;
+        $body = null;  
+        
+        // Array to store feedback to be returned to client code
+        $result = [
+            'code'      => 200,
+            'message'   => 'OK',
+            'html'      => ''
+        ];        
+        
+        if(empty($resource)):
+            $result = [
+                'code'      => 400,
+                'message'   => 'Missing article URL.',
+                'html'      => 'Missing article URL.'
+            ];         
+        else:
+            $curl = curl_init();
+            curl_setopt($curl, CURLOPT_URL, $resource );
+            curl_setopt($curl, CURLOPT_POST, false);
+            curl_setopt($curl, CURLOPT_USERAGENT,'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');        
+            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
+            curl_setopt($curl, CURLOPT_COOKIEFILE, "");
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT ,0); 
+            curl_setopt($curl, CURLOPT_TIMEOUT, 400); //timeout in seconds    
+            set_time_limit(0);
+            // Make the request
+            $response = curl_exec($curl);
+            
+            if (FALSE === $response):
+                $errMsg = curl_error($curl);
+                $result = [
+                    'code'  => 400,
+                    'message'   => "Unable to fetch content at $url.\nError message: $errMsg\nCode: Fetch embed",
+                    'html'   => "Unable to fetch content at $url.<br>Error message: $errMsg<br>Code: Fetch embed"
+                ];  
+            else:
+                // Create new parser instance
+                $html = new rdp_simple_html_dom(); 
+                $html->load($response,true,false);              
+
+                if($html){
+                    $body = $html->find('body',0);
+                }             
+            endif;
+
+            curl_close($curl);        
+        endif;
+            
+
+        if($result['code'] == 200):
+            RDP_EBB_CONTENT::scrub($resource, $body);
+            $result['html'] = $body->outertext;
+        endif;        
+
+        echo json_encode($result);
+        die();
+        
+    }//fetchEmbed
 }//RDP_EBB_ARTICLE

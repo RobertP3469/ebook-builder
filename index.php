@@ -4,7 +4,7 @@
 Plugin Name: RDP eBook Builder
 Plugin URI: http://robert-d-payne.com/
 Description: Build books from wiki pages. Requires RDP Wiki Embed plugin.
-Version: 1.1.0
+Version: 1.2.0
 Author: Robert D Payne
 Author URI: http://robert-d-payne.com/
 License: GPLv2 or later
@@ -29,6 +29,8 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
 
         public static $version = '1.1.0';
         public static $paper_sizes = array('A4','Letter');
+        
+        private $_instanceBookBuilder = null;
         private $_instanceBook = null;
         private $_options = array();        
         
@@ -89,9 +91,9 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
                 'sBookTOCLinks' => 'disabled',
                 'log_in_msg' => '<span></span> Please log in to read online.',
                 'sCoverSize' => 'large',
-                'whitelist' => "en.wikipedia.org
-     en.wikibooks.org
-     pediapress.com",            
+                'whitelist' => " en.wikipedia.org
+ en.wikibooks.org
+ pediapress.com",            
             );        
         }//default_settings 
         
@@ -152,6 +154,8 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
             if(!has_filter('widget_text','do_shortcode'))add_filter('widget_text','do_shortcode',11);
 
             add_action( 'template_redirect', array(&$this,'handle_filters') );
+            $this->_instanceBookBuilder =  RDP_EBB::get_instance(self::$version,$this->_options);
+            
         }//define_front_hooks   
         
         public static function template_include($template) {
@@ -278,6 +282,10 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
                     RDP_EBB_BOOK::downloadHandler();
                     break;
 
+                case 'fetch_embed':
+                    RDP_EBB_ARTICLE::fetchEmbed();
+                    break;
+                
                 default:
                     break;
             }

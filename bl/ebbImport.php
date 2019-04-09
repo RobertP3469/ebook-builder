@@ -4,19 +4,21 @@ if ( ! defined('WP_CONTENT_DIR')) exit('No direct script access allowed');
 
 class RDP_EBB_IMPORT {
     
-    public static function handleMediawikiImport($URL,$dataPass,$baseURL,$book_id = 0) {
+    public static function handleMediawikiImport($url,$dataPass,$baseURL,$book_id = 0) {
         
         $hasError = false;
         $curl = curl_init();
-        // Make the request
-        curl_setopt($curl, CURLOPT_URL, $URL );
+        curl_setopt($curl, CURLOPT_URL, $url );
         curl_setopt($curl, CURLOPT_POST, false);
+        curl_setopt($curl, CURLOPT_USERAGENT,'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');        
         curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
-        curl_setopt($curl, CURLOPT_COOKIEFILE, "/tmp/cookie.txt");
-        curl_setopt($curl, CURLOPT_COOKIEJAR, "/tmp/cookie.txt");
+        curl_setopt($curl, CURLOPT_COOKIEFILE, "");
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-
+        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT ,0); 
+        curl_setopt($curl, CURLOPT_TIMEOUT, 400); //timeout in seconds    
+        set_time_limit(0);
+        // Make the request
         $response = curl_exec($curl);
 
         $html = null;
@@ -24,9 +26,9 @@ class RDP_EBB_IMPORT {
         
 
         if (FALSE === $response){
-            $msg = __("Unable to retrieve book content.\nCode: cURL error",'rdp-wiki-book-builder');
+            $msg = __("Unable to retrieve book content.\nCode: cURL error",'rdp-ebook-builder');
             $dataPass['code'] = '400' ;
-            $dataPass['messages'][] = RDP_EBB_PLUGIN::errorMessagePreamble . $msg;
+            $dataPass['messages'][] = RDP_EBB_PLUGIN::errorMessagePreamble() . $msg;
             $hasError = true;            
 //            throw new Exception(curl_error($curl), curl_errno($curl));
         }
@@ -37,27 +39,28 @@ class RDP_EBB_IMPORT {
             $html->load($response,true,false); 
 
             if(!$html){
-                $msg = __("Unable to retrieve book content.\nCode: DOM Parser failed to load",'rdp-wiki-book-builder');
+                $msg = __("Unable to retrieve book content.\nCode: DOM Parser failed to load",'rdp-ebook-builder');
                 $dataPass['code'] = '400' ;
-                $dataPass['messages'][] = RDP_EBB_PLUGIN::errorMessagePreamble . $msg;
+                $dataPass['messages'][] = RDP_EBB_PLUGIN::errorMessagePreamble() . $msg;
                 $hasError = true;
             }            
         endif;
 
         if(!$hasError):
             $body = $html->find('#content',0);
+        
 
             if(!$body){
-                $msg = __("Unable to retrieve book content.\nCode: No Content",'rdp-wiki-book-builder');
+                $msg = __("Unable to retrieve book content.\nCode: No Content",'rdp-ebook-builder');
                 $dataPass['code'] = '400' ;
-                $dataPass['messages'][] = RDP_EBB_PLUGIN::errorMessagePreamble . $msg;
+                $dataPass['messages'][] = RDP_EBB_PLUGIN::errorMessagePreamble() . $msg;
                 $hasError = true;
             }             
         endif;        
  
        if(!$hasError):
             // parse HTML in body object
-           $dataPass = self::mediawikiContentPieces_Parse($body,$URL,$baseURL,$book_id);
+           $dataPass = self::mediawikiContentPieces_Parse($body,$url,$baseURL,$book_id);
            if($dataPass['code'] == 200) $downloadURL = RDP_EBB_BOOK::generateHTMLFile($book_id);           
        endif;
 
@@ -179,7 +182,7 @@ class RDP_EBB_IMPORT {
                 $x = $item->tag;
                 switch ($item->tag) {
                     case 'dt':
-                        $sTitle = RDP_EBB_Utilities::unXMLEntities($item->plaintext);
+                        $sTitle = wp_specialchars_decode($item->plaintext);
                         RDP_EBB_CHAPTER::add( $sTitle, $book_id );
                         $parentKey = md5($sTitle);
                         break;
@@ -188,7 +191,7 @@ class RDP_EBB_IMPORT {
                         $sURL = '';
                         $ret = $item->find('a',0);
                         if($ret){
-                            $sTitle = RDP_EBB_Utilities::unXMLEntities($ret->plaintext);
+                            $sTitle = wp_specialchars_decode($ret->plaintext);
                             $articleURLPieces = parse_url($ret->href);
                             if(empty($articleURLPieces['scheme'])):
                                 $articleURLPieces['scheme'] = $baseURLPieces['scheme'];
@@ -201,7 +204,7 @@ class RDP_EBB_IMPORT {
                         }else{
                             $sTitle = RDP_EBB_Utilities::unXMLEntities($item->plaintext);
                         }
-                        
+                                               
                         $result = RDP_EBB_ARTICLE::add($sTitle, $sURL, $book_id, $parentKey);
                         if($result['code'] !== 200):
                             $dataPass['code'] = 400;

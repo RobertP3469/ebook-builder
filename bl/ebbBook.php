@@ -239,11 +239,14 @@ class RDP_EBB_BOOK {
                     $tocHTML .= $sTitle;
                     break;
                 default:
+                    
+                    $fileURL = RDP_EBB_PLUGIN_BASEURL . '/dl/' . $post->ID . '.html';
+                    $src = add_query_arg(['ebb-key'=>$sKey],$fileURL);  
+                    
                     if($link_state == 'logged-in' && !is_user_logged_in()):
-                        $tocHTML .= sprintf('<a class="external rdp_wbb_must_log_in">%s</a>',$sText);
+                        $tocHTML .= sprintf('<a class="external rdp_wbb_must_log_in" data-href="%s">%s</a>',$src,$sText);
                     else:
-                        $fileURL = RDP_EBB_PLUGIN_BASEURL . '/dl/' . $post->ID . '.html';
-                        $src = add_query_arg(['ebb-key'=>$sKey],$fileURL);
+
                         $tocHTML .= sprintf('<a target="_new" href="%s" class="external" title="%s" data-guid="%s">%s</a>',$src,$sTitle,$sKey,$sText);
                     endif;
 
@@ -463,9 +466,6 @@ class RDP_EBB_BOOK {
             @unlink($file_array['tmp_name']);
             return $thumbnail_id;
 	}
-       
-        
-
         
         $result = set_post_thumbnail( $book_id, $thumbnail_id );
     }//handleFeaturedImage  
@@ -580,7 +580,6 @@ class RDP_EBB_BOOK {
         
         $sHTML = <<<EOH
         <div class="wrap" id="title-page">
-            <div id="handle"></div>    
             <image id="cover-image" src="data:image/png;base64,$bookCover" />
             <div id="title-container">
             <div id="title">{$book->post_title}</div>

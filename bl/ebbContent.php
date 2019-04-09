@@ -146,7 +146,8 @@ class RDP_EBB_CONTENT {
                 $oLinkPieces['host'] = $oURLPieces['host'];
             endif;
 
-            $link->href = RDP_EBB_Utilities::unparse_url($oLinkPieces);
+            $unparsedHREF = RDP_EBB_Utilities::unparse_url($oLinkPieces);
+            $link->href = $unparsedHREF;
             
         }  
         
@@ -157,35 +158,47 @@ class RDP_EBB_CONTENT {
             }
         }        
         
+        
         $len = strlen($rootSource);        
         foreach($body->find('a') as $link){
             $fIsFile = false;
             $pos = -1;
             $classes = array();
-
+            
+            $currentHREF = $link->href;
+            $x = $currentHREF;
+            
             if(isset($link->class)){
                 $classes = explode(' ',$link->class) ;
             }              
 
             $fIsExternal = in_array('external', $classes);
 
-
             if(isset($link->href)){
+                // override external flag if link does not match source domain
                 if(!$fIsExternal):
                     $pos = (substr(strtolower($link->href), 0, $len) === $rootSource);
                     $fIsExternal = !($pos === true);                   
                 endif;
+                
+                
+                // override external flag after check matches a whitelisted domain
+                if($fIsExternal):
+                    $passURLCheck = RDP_EBB_Utilities::urlCheck($link->href);
+                    $fIsExternal = !$passURLCheck;                    
+                endif;
 
-                if($fIsExternal)$link->rel = 'external_link'; 
+                $firstChar = substr($link->href, 0, 1);
+                if($fIsExternal && $firstChar !== '#')$link->rel = 'external_link'; 
 
                 $isCiteAnchor = true;
-                if(substr($link->href, 0, 1) !== '#'){
+                if($firstChar !== '#'){
                     $isCiteAnchor = false;  
                     $fIsFile = RDP_EBB_Utilities::isScriptStyleImgRequest($link->href);                  
                 }                    
             }             
 
-            if(isset($link->href) && ($isCiteAnchor === false)){
+            if($fIsExternal && isset($link->href) && ($isCiteAnchor === false)){
                     $link->target = '_blank';                    
             }
 
@@ -244,5 +257,8 @@ class RDP_EBB_CONTENT {
             }
             $element->id = 'rdp-ebb-' . $element->id;
         } 
-    }//content_scrub   
+    }//content_scrub
+    
+    
+    
 } //RDP_EBB_CONTENT
