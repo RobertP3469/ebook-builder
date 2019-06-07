@@ -62,10 +62,6 @@ if (!class_exists('RDP_EBB_PLUGIN', FALSE)) {
             define('RDP_EBB_PLUGIN_PUBLIC_IMAGES', plugins_url( 'pl/images', __FILE__ ));
         }//defineConstants   
         
-        static function errorMessagePreamble(){
-            return __('Book Import Error: ','rdp-ebook-builder');
-        }
-        
         static function default_settings() {
             return array(
                 'sOrder' => 'ASC',
