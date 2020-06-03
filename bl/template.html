@@ -630,10 +630,7 @@
             
             function init(){
                 var title = dataObj._ebook_metadata.title;
-                title += (dataObj._ebook_metadata.subtitle)? ': ' + dataObj._ebook_metadata.subtitle: '' ;
-                
-                console.log(navigator.onLine);
-                
+                title += (dataObj._ebook_metadata.subtitle)? ': ' + dataObj._ebook_metadata.subtitle: '' ;                
                 $('#book-title').html(title);
                 $('title').text(title);
                 
@@ -683,11 +680,19 @@
                 /* End search setup  */
                 
                 /* check query params for an ebb key */
-                urlObj = new URL(window.parent.location);
+                urlObj = new URL(location);
                 ebbKey = urlObj.searchParams.get('ebb-key');
                 ebbType = urlObj.searchParams.get('ebb-type');
                 if(ebbKey){
-                    load_article(ebbKey,ebbType); 
+                    load_article(ebbKey,ebbType);
+                    
+                    if(location.hash){
+                        setTimeout(function(){ 
+                            var s2 = location.hash.substr(1); 
+                            document.getElementById(s2).scrollIntoView();
+                          }, 300);
+                    }                    
+
                 }else{
                     load_article('','title_page');
                 }                
@@ -727,7 +732,7 @@
                 
                 $(document).on('click','.wiki-link',function(event){
                     event.preventDefault();
-                    
+                    console.log(this.href);                    
                     if(dataObj._ebook_metadata.items[this.dataset.key +'_html']){
                         const type = dataObj._ebook_metadata.items[this.dataset.key +'_type'];
                         urlObj = new URL(window.parent.location);
@@ -741,7 +746,7 @@
                        $('#html, body').animate({ scrollTop: 0 }, 'fast'); */
                    }else{
                         console.log(navigator.onLine);
-                        console.log(this.href);
+
                         if(navigator.onLine){
                             urlObj = new URL(window.parent.location);
                             urlObj.hash = '';
@@ -912,12 +917,14 @@
             } 
             
             function zTree_beforeClick(treeId, treeNode, clickFlag){
-                console.log(treeNode);
                 if(treeNode.type === 'chapter') return false;
             }
             
             function zTree_onClick(event, treeId, treeNode){
+                const source = new URL(treeNode.pageUrl);
+                
                 urlObj = new URL(window.parent.location);
+                urlObj.hash = source.hash;
                 urlObj.searchParams.set('ebb-key',treeNode.id);
                 urlObj.searchParams.set('ebb-type',treeNode.type);
                 urlObj.searchParams.delete('ebb-resource');
@@ -1032,7 +1039,7 @@
                     
                     sTOC += '<li id="'+tocItem.id+'">' + tocItem.name ;
                     
-                    if(tocItem.children.length){
+                    if(tocItem.children && tocItem.children.length){
                         sTOC += '<ul>';
                         tocItem.children.forEach(function(childItem){
                             sTOC += '<li id="'+childItem.id+'">' + childItem.name + '</li>';
@@ -1060,6 +1067,7 @@
 
                 for (let elem in dataObj._ebook_metadata.items) { 
                     var res = elem.split("_");
+                    if(!res)continue;
                     if(res.length < 2)continue;
 
                     if(lastPageKey !== res[0]){

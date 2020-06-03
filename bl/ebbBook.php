@@ -152,15 +152,16 @@ class RDP_EBB_BOOK {
 
                     break;
                 default:
+                    $form = RDP_GRAVITYFORMS_UTILITIES::gravity_form_get_by_name('Lead Submit Form'); 
                     
                     $sDownloadButton .= "<div id='rdp-wbb-cta-button-box' class='medium'><a class='rdp-wbb-cta-button orange medium' href='#rdp_wbb_cta_inline_content'>{$btnText}</a></div>";
                     $metaHTML .= apply_filters('rdp_wbb_cta_button', $sDownloadButton, $meta, $btnText) ;                    
                     $sInlineHTML .= "<div id='rdp_wbb_cta_inline_content_wrapper' style='display:none'><div id='rdp_wbb_cta_inline_content' class='$sClasses'>";
                     $sInlineHTML .= '<div class="rdp_wbb_cta_button_content">';                    
                     if($cta_button == 1  && !is_user_logged_in()):
-                        $sInlineHTML .= do_shortcode('[limsbook require_login=1 form_id=1]');
+                        $sInlineHTML .= do_shortcode('[limsbook require_login=1 form_id=' . $form['id'] . ']');
                     else:
-                        $sInlineHTML .= do_shortcode('[limsbook require_login=0 form_id=1]');
+                        $sInlineHTML .= do_shortcode('[limsbook require_login=0 form_id=' . $form['id'] . ']');
                     endif;
                     
                     $sInlineHTML .= "</div><!-- .rdp_wbb_cta_button_content -->";                 
@@ -190,8 +191,7 @@ class RDP_EBB_BOOK {
 
             switch($item->type){
                 case 'chapter':
-                    $sHTML .= '<li class="chapter">' . __('Chapter', 'rdp-wiki-book-builder') . ': ' . esc_html($item->name) ;
-
+                    $sHTML .= '<li class="chapter">' . __('Chapter', 'ebook-builder') . ': ' . esc_html($item->name) ;
                     break;
                 default:
                     $sHTML .= RDP_EBB_BOOK::buildArticleItem($item, $linkState);
@@ -241,13 +241,17 @@ class RDP_EBB_BOOK {
                 default:
                     
                     $fileURL = RDP_EBB_PLUGIN_BASEURL . '/dl/' . $post->ID . '.html';
-                    $src = add_query_arg(['ebb-key'=>$sKey],$fileURL);  
+                    $src = add_query_arg(['ebb-key'=>$sKey],$fileURL); 
+                    
+                    $fragment = parse_url($item->pageUrl, PHP_URL_FRAGMENT);
+                    if($fragment) $src .= '#' . $fragment;
+                    
                     
                     if($link_state == 'logged-in' && !is_user_logged_in()):
-                        $tocHTML .= sprintf('<a class="external rdp_wbb_must_log_in" data-href="%s">%s</a>',$src,$sText);
+                        $tocHTML .= sprintf('<a class="external rdp_wbb_must_log_in" data-href="%s">%s</a>', esc_attr($src), esc_html($sText));
                     else:
 
-                        $tocHTML .= sprintf('<a target="_new" href="%s" class="external" title="%s" data-guid="%s">%s</a>',$src,$sTitle,$sKey,$sText);
+                        $tocHTML .= sprintf('<a target="_new" href="%s" class="external" title="%s" data-guid="%s">%s</a>',esc_attr($src), esc_attr($sTitle), esc_attr($sKey), esc_html($sText));
                     endif;
 
             }                           

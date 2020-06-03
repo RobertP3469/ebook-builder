@@ -370,10 +370,18 @@ class RDP_EBB_ADMIN {
                 $baseURL =  $needle;                 
             endif;
 
+            $needle = 'https://www.cannaqa.wiki';
+            $test = substr($source, 0, strlen($needle));
+            if($needle === $test):
+                $sourceName = 'cannaqa'; 
+                $baseURL =  $needle;                 
+            endif;            
+            
 
             switch ($sourceName) {
                 case 'lablynxpress':
                 case 'limswiki':
+                case 'cannaqa':
                     $dataPass = RDP_EBB_IMPORT::handleMediawikiImport($source, $dataPass, $baseURL, $post_id);
 
                     if($dataPass['code'] !== '200'):
